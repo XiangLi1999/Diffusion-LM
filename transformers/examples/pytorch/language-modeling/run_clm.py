@@ -102,20 +102,25 @@ class ModelArguments:
         metadata={"help": "If training from scratch, pass a model type from the list: " + ", ".join(MODEL_TYPES)},
     )
 
+    learned_emb: Optional[str] = field(
+        default='no',
+        metadata={"help": "If training from scratch, pass a model type from the list: " + ", ".join(MODEL_TYPES)},
+    )
+
     padding_mode: Optional[str] = field(
         default='block',
         metadata={"help": "blcok or pad"},
     )
     roc_train: Optional[str] = field(
-        default='diffusion_lm/ROCstory',
+        default='/juice/scr/xlisali/diffusion_lm/ROCstory',
         metadata={"help": "roc story path"},
     )
     wiki_train: Optional[str] = field(
-        default='diffusion_lm/simple_wiki/data.v1.split/simple.training.txt',
+        default='/u/scr/xlisali/diffusion_lm/simple_wiki/data.v1.split/simple.training.txt',
         metadata={"help": "simple wiki path"},
     )
     e2e_train: Optional[str] = field(
-        default='e2e_data',
+        default='/u/scr/xlisali/e2e_data',
         metadata={"help": "simple wiki path"},
     )
 
@@ -220,7 +225,7 @@ class DataTrainingArguments:
     )
 
     synth_config:  Optional[str] = field(
-        default='diffusion_lm/synthetic_data/configs/emnlp2020/experiments/difflm_seed0_m3_k32_trainc20000.yaml', metadata={"help": "The name of the dataset to use (via the datasets library)."}
+        default='/juice/scr/xlisali/diffusion_lm/synthetic_data/configs/emnlp2020/experiments/difflm_seed0_m3_k32_trainc20000.yaml', metadata={"help": "The name of the dataset to use (via the datasets library)."}
     )
 
     block_size: Optional[int] = field(
@@ -358,6 +363,61 @@ def get_corpus_rocstory(data_args):
                 word_lst = row.split()
                 sentence_lst.append(word_lst)
         print(sentence_lst[:2])
+    elif data_args.experiment.startswith('e2e-tgt') and data_args.task == 'data_teacher':
+        print('loading dataset from simple e2e dataset')
+        sentence_lst = []
+        nlp = English()
+        tokenizer = nlp.tokenizer
+        path = f'{data_args.e2e_train}/src1_train.txt'
+        with open(path, 'r') as ff:
+            for row in ff:
+                word_lst = row.split('||')[1]
+                sentence_lst.append(word_lst)
+        print(sentence_lst[:2])
+
+    elif data_args.experiment.startswith('e2e-tgt') and data_args.task == 'finetuneUNK':
+        '''
+            Used to evaluate fluency: first load e2e-vocab, and then UNK the oov words in the training data. 
+        '''
+        print('loading dataset from simple e2e dataset')
+        sentence_lst = []
+        nlp = English()
+        tokenizer = nlp.tokenizer
+        # load vocab.
+        tokenizer2 = load_tokenizer('e2e-tgt', 'random',
+                                   '/u/scr/nlp/xlisali/predictability/diffusion_models_v6/diff_e2e-tgt_pad_rand16_transformer_lr0.0001_0.0_2000_sqrt_Lsimple_h128_s2_d0.1_sd102_xstart')
+        vocab = {v: k for k, v in tokenizer2.items()}
+        print(len(tokenizer2), len(vocab), 'loaded vocabs')
+
+        path = f'{data_args.e2e_train}/src1_train.txt'
+        with open(path, 'r') as ff:
+            for row in ff:
+                word_lst = row.split('||')[1]
+                tokenized = [x.text for x in tokenizer(word_lst)]
+                word_lst1 = [x if x in vocab else 'UNK' for x in tokenized]
+                word_lst1 = " ".join(word_lst1)
+                word_lst2 = [vocab.get(x.text, vocab['UNK']) for x in tokenizer(word_lst)]
+                word_lst2 = " ".join([tokenizer2[x] for x in word_lst2])
+                # print(word_lst1, word_lst2)
+                assert word_lst1 == word_lst2
+
+                # print(word_lst1)
+                sentence_lst.append(word_lst1)
+        print(sentence_lst[:2])
+
+    elif data_args.experiment.startswith('e2e-tgt') and data_args.task == 'right2left':
+        print('loading dataset from simple e2e dataset')
+        sentence_lst = []
+        nlp = English()
+        tokenizer = nlp.tokenizer
+        path = f'{data_args.e2e_train}/src1_train.txt'
+        with open(path, 'r') as ff:
+            for row in ff:
+                word_lst = row.split('||')[1]
+                word_lst = list(reversed([x.text for x in tokenizer(word_lst)]))
+                sentence_lst.append(word_lst)
+        print(sentence_lst[:2])
+
     elif data_args.experiment.startswith('e2e-tgt'):
         print('loading dataset from simple e2e dataset')
         sentence_lst = []
@@ -500,7 +560,7 @@ def main():
     # download the dataset.
     if model_args.experiment.startswith('synth'):
         import yaml, torch
-        sys.path.insert(0, 'diffusion_lm/synthetic_data/rnns-stacks')
+        sys.path.insert(0, '/juice/scr/xlisali/diffusion_lm/synthetic_data/rnns-stacks')
         from dataset import Dataset as SynthDataset
         args_synth = yaml.load(open(data_args.synth_config))
         # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -518,7 +578,7 @@ def main():
         import yaml, torch, json
         from collections import Counter, defaultdict
         dataset = load_dataset(data_args.dataset_name, data_args.dataset_config_name, )
-        dataset = dataset.load_from_disk('wikitext-2-pos')
+        dataset = dataset.load_from_disk('/u/scr/nlp/xlisali/wikitext-2-pos')
         counter = Counter()
         print(dataset)
         for input_ids in dataset['train']:
@@ -543,7 +603,7 @@ def main():
 
         if model_args.experiment.startswith('roc'):
             tokenizer = load_tokenizer('roc', 'random',
-                                       'predictability/diffusion_models_v7/diff_roc_pad_rand16_transformer_lr0.0001_0.0_2000_sqrt_Lsimple_h128_s2_d0.1_sd108_xstart')
+                                       '/u/scr/nlp/xlisali/predictability/diffusion_models_v7/diff_roc_pad_rand16_transformer_lr0.0001_0.0_2000_sqrt_Lsimple_h128_s2_d0.1_sd108_xstart')
             vocab = {v: k for k, v in tokenizer.items()}
             print(len(tokenizer), len(vocab), 'loaded vocabs')
 
@@ -570,7 +630,7 @@ def main():
                        'PUNCT', 'SYM', 'X']
             for x in pos_lst:
                 pos_vocab[x] = len(pos_vocab)
-        elif model_args.experiment in ['e2e-tgt-tree', 'e2e-tgt-gen-tree']:
+        elif model_args.experiment in ['e2e-tgt-tree', 'e2e-tgt-gen-tree', 'e2e-tgt-gen-spans']:
             import benepar
             parser = benepar.Parser("benepar_en3")
             tree_vocab = parser._parser.config["label_vocab"]
@@ -673,20 +733,37 @@ def main():
             print('loading from pretrained models tokenizer')
             tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
             print(type(tokenizer))
-            if model_args.experiment == 'e2e-tgt-gen-tree':
+            if model_args.experiment == 'e2e-tgt-gen-tree' or model_args.experiment == 'e2e-tgt-gen-spans':
                 # new_vocabs_added = list(tree_vocab.keys())
                 tokenizer.add_tokens(list(tree_vocab.keys()))
                 tokenizer.add_special_tokens({"pad_token": "<PAD>"})
             elif model_args.experiment == 'e2e-tgt-gen-pos':
-                # print(list(pos_vocab.keys()))
                 tokenizer.add_tokens(list(pos_vocab.keys()))
+                tokenizer.add_special_tokens({"pad_token": "<PAD>"})
+            elif model_args.experiment == 'e2e-tgt-gen-length':
+                tokenizer.add_tokens([str(xx) for xx in range(64)])
+                tokenizer.add_special_tokens({"pad_token": "<PAD>"})
+            elif model_args.experiment == 'e2e-tgt' and model_args.task == 'finetune':
+                tokenizer.add_tokens(['UNK'])
                 tokenizer.add_special_tokens({"pad_token": "<PAD>"})
             else:
                 tokenizer.add_special_tokens({"pad_token": "<PAD>"})
         else:
             print('loading from dataset-specific vocab')
             tokenizer = raw_datasets.vocab
-            reverse_tokenizer = {v:k for k, v in tokenizer.items()}
+            if model_args.experiment == 'e2e-tgt-gen-spans':
+                print('update the vocab to include tree vocabs')
+                print(len(tokenizer))
+                for x in tree_vocab.keys():
+                    tokenizer[x] = len(tokenizer)
+                print('update the vocab to include indices')
+                # tokenizer.add_tokens([str(xx) for xx in range(64)])
+                for x in range(64):
+                    if str(x) not in tokenizer:
+                        tokenizer[str(x)] = len(tokenizer)
+            print(len(tokenizer))
+            reverse_tokenizer = {v: k for k, v in tokenizer.items()}
+
     else:
         if model_args.tokenizer_name:
             tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_name, **tokenizer_kwargs)
@@ -773,7 +850,8 @@ def main():
             )
 
         ############# LOAD MODELS for controllable generators ##############
-        elif model_args.experiment in ['e2e-tgt-gen-tree', 'e2e-tgt-gen-pos', 'e2e-back-gen']:
+        elif model_args.experiment in ['e2e-tgt-gen-tree', 'e2e-tgt-gen-pos', 'e2e-back-gen', 'e2e-tgt-gen-length',
+                                       'e2e-tgt-gen-spans']:
             if model_args.task == 'finetune':
                 model = AutoModelForCausalLM.from_pretrained(model_args.model_name_or_path)
                 model.resize_token_embeddings(len(tokenizer))
@@ -825,16 +903,32 @@ def main():
 
 
 
-            filename = model_args.init_emb  # 'predictability/diffusion_models_v3/diff_e2e-tgt_block_rand16_transformer_lr0.0001_2000_cosine_Lsimple_h128_s2_sd101'
+            filename = model_args.init_emb  # '/u/scr/nlp/xlisali/predictability/diffusion_models_v3/diff_e2e-tgt_block_rand16_transformer_lr0.0001_2000_cosine_Lsimple_h128_s2_sd101'
             path_save = '{}/random_emb.torch'.format(filename)
-            if model_args.experiment == 'e2e-tgt-pos':
+            path_learned = '{}/ema_0.9999_200000.pt'.format(filename)
+            if model_args.experiment == 'e2e-tgt-pos' and model_args.learned_emb == 'no':
                 model.transformer.embeddings.word_embeddings.load_state_dict(torch.load(path_save))
                 model.transformer.embeddings.word_embeddings.weight.requires_grad = False
-            if model_args.experiment == 'e2e-tgt-tree':
+            elif model_args.experiment == 'e2e-tgt-pos' and model_args.learned_emb == 'yes':
+                print('loading the learned embeddings')
+                learned_embeddings = torch.load(path_learned)['word_embedding.weight']
+                model.transformer.embeddings.word_embeddings.weight.data = learned_embeddings.clone()
+                model.transformer.embeddings.word_embeddings.weight.requires_grad = False
+            elif model_args.experiment == 'e2e-tgt-tree' and model_args.learned_emb == 'no':
                 model.transformer.embeddings.word_embeddings.load_state_dict(torch.load(path_save))
                 model.transformer.embeddings.word_embeddings.weight.requires_grad = False
-            elif model_args.experiment.startswith('e2e-back'):
+            elif model_args.experiment == 'e2e-tgt-tree' and model_args.learned_emb == 'yes':
+                print('loading the learned embeddings')
+                learned_embeddings = torch.load(path_learned)['word_embedding.weight']
+                model.transformer.embeddings.word_embeddings.weight.data = learned_embeddings.clone()
+                model.transformer.embeddings.word_embeddings.weight.requires_grad = False
+            elif model_args.experiment.startswith('e2e-back') and model_args.learned_emb == 'no':
                 model.transformer.wte.load_state_dict(torch.load(path_save))
+                model.transformer.wte.weight.requires_grad = False
+            elif model_args.experiment.startswith('e2e-back') and model_args.learned_emb == 'yes':
+                print('loading the learned embeddings')
+                learned_embeddings = torch.load(path_learned)['word_embedding.weight']
+                model.transformer.wte.weight.data = learned_embeddings.clone()
                 model.transformer.wte.weight.requires_grad = False
 
 
@@ -848,7 +942,7 @@ def main():
                 config.n_head = model_args.n_embd
                 config.vocab_size = len(tokenizer)
                 model = AR_for_cont(config)
-                filename =  model_args.init_emb #'predictability/diffusion_models_v3/diff_e2e-tgt_block_rand16_transformer_lr0.0001_2000_cosine_Lsimple_h128_s2_sd101'
+                filename =  model_args.init_emb #'/u/scr/nlp/xlisali/predictability/diffusion_models_v3/diff_e2e-tgt_block_rand16_transformer_lr0.0001_2000_cosine_Lsimple_h128_s2_sd101'
                 path_save = '{}/random_emb.torch'.format(filename)
                 model.transformer.wte.load_state_dict(torch.load(path_save))
                 model.transformer.wte.weight.requires_grad = False
@@ -878,7 +972,7 @@ def main():
                 config.input_emb_dim = model_args.n_embd
                 config.train_diff_steps = training_args2['diffusion_steps']
                 model = Classifier_Consistency(config=config, diffusion=diffusion,)
-                path_save = 'predictability/diffusion_models_v7/diff_roc_pad_rand128_transformer_lr0.0001_0.0_2000_sqrt_Lsimple_h128_s2_d0.1_sd108_xstart_e2e_long/model750000.pt'
+                path_save = '/u/scr/nlp/xlisali/predictability/diffusion_models_v7/diff_roc_pad_rand128_transformer_lr0.0001_0.0_2000_sqrt_Lsimple_h128_s2_d0.1_sd108_xstart_e2e_long/model750000.pt'
                 embedding_weight = torch.load(path_save)['word_embedding.weight']
                 print(embedding_weight.shape)
                 model.bert.embeddings.word_embeddings.weight = embedding_weight
@@ -1018,13 +1112,59 @@ def main():
                 load_from_cache_file=not data_args.overwrite_cache,
                 desc=f"padding",
             )
-    elif model_args.experiment in ['e2e-tgt-tree', 'e2e-tgt-gen-tree']:
+
+    elif model_args.experiment in ['e2e-tgt-gen-length']:
+        assert model_args.task != 'data_teacher', 'should not be data_teacher.'
+        def tokenize_function(examples):
+            vocab_dict = raw_datasets.vocab
+            with CaptureLogger(tok_logger) as cl:
+                if model_args.task == 'finetune':
+                    input_strings = [f'{len(seq)}' + tokenizer.bos_token + " ".join(seq) + tokenizer.eos_token
+                                     for seq in examples['text']]
+                    return tokenizer(input_strings, max_length=128, padding='max_length', truncation=True)
+                elif model_args.task == 'from_scratch':
+                    raise NotImplementedError
+                    input_ids = [[0] + [vocab_dict.get(x, vocab_dict['UNK']) for x in seq] + [1] for seq in examples['text']]
+                    pos_tags = [[0] + [pos_vocab[x] for x in seq] + [1] for seq in pos_lst]
+                    result_dict = {'input_ids': input_ids, 'pos_tags': pos_tags}
+
+            # clm input could be much much longer than block_size
+            if "Token indices sequence length is longer than the" in cl.out:
+                tok_logger.warning(
+                    "^^^^^^^^^^^^^^^^ Please ignore the warning above - this long input will be chunked into smaller bits before being passed to the model."
+                )
+            return result_dict
+
+        with training_args.main_process_first(desc="dataset map tokenization"):
+            tokenized_datasets = raw_datasets.map(
+                tokenize_function,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+                remove_columns=column_names,
+                load_from_cache_file=not data_args.overwrite_cache,
+                desc="Running tokenizer on dataset",
+            )
+
+        def pad_function(group_lst):
+            group_lst['labels'] = group_lst['input_ids']
+            return group_lst
+
+        with training_args.main_process_first(desc="grouping texts together"):
+            lm_datasets = tokenized_datasets.map(
+                pad_function,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+                load_from_cache_file=not data_args.overwrite_cache,
+                desc=f"padding",
+            )
+
+    elif model_args.experiment in ['e2e-tgt-tree', 'e2e-tgt-gen-tree', 'e2e-tgt-gen-spans']:
         assert model_args.task != 'data_teacher', 'should not be data_teacher.'
         import spacy, nltk
         from nltk.tree import Tree
         import numpy as np
         import torch
-        print(parser)
+        # print(parser)
         print(parser._parser.config["label_vocab"])
         from utils import chart_from_tree, remove_leaves, pad_charts
 
@@ -1049,19 +1189,36 @@ def main():
                     input_ids = [[0] + [vocab_dict.get(x, vocab_dict['UNK']) for x in seq] + [1] for seq in examples['text']]
                     result_dict = {'input_ids': input_ids, 'chart_lst':chart_lst}
                 elif model_args.experiment == 'e2e-tgt-gen-tree':
-                    # change the tree to remove words.
-                    # print(parse_lst[0])
                     parse_lst = [remove_leaves(tree) for tree in parse_lst]
-                    # print(parse_lst[0])
 
                     if model_args.task == 'finetune':
                         input_strings = [tree._pformat_flat("", "()", False) + tokenizer.bos_token + " ".join(seq) + tokenizer.eos_token for
                                          (tree, seq) in zip(parse_lst, examples['text'])]
                         return tokenizer(input_strings, max_length=256, padding='max_length', truncation=True)
-                    elif model_args.tas == 'from_scratch':
+                    elif model_args.task == 'from_scratch':
                         raise NotImplementedError
                         input_ids = [tree + [0] + [vocab_dict.get(x, vocab_dict['UNK']) for x in seq] + [1] for (tree, seq) in
                                      zip(parse_lst, examples['text'])]
+                elif model_args.experiment == 'e2e-tgt-gen-spans':
+                    if model_args.task == 'finetune':
+                        input_strings = []
+                        for parse, seq in zip(parse_lst, examples['text']):
+                            chart, spans = chart_from_tree(tree_vocab, parse, verbose=True)
+                            for (a,b,c) in spans:
+                                input_strings.append(f"{a}, {b}, {c}" + tokenizer.bos_token + " ".join(seq) + tokenizer.eos_token )
+                        # print(len(input_strings), len(examples['text']))
+                        return tokenizer(input_strings, max_length=70, padding='max_length', truncation=True)
+                    elif model_args.task == 'from_scratch':
+                        input_lst = []
+                        for parse, seq in zip(parse_lst, examples['text']):
+                            chart, spans = chart_from_tree(tree_vocab, parse, verbose=True)
+                            for (a, b, c) in spans:
+                                input_ids = [vocab_dict.get(x, vocab_dict['UNK']) for x in f"{a} {b} {c}".split()] + [0] + [vocab_dict.get(x, vocab_dict['UNK']) for x in seq] + [1]
+                                input_lst.append(input_ids)
+                        print(len(input_lst), len(parse_lst))
+                        print(input_lst[0])
+                        result_dict = {'input_ids': input_lst}
+
 
             # clm input could be much much longer than block_size
             if "Token indices sequence length is longer than the" in cl.out:
@@ -1086,8 +1243,14 @@ def main():
                 max_length = 64
                 group_lst['input_ids'] = _collate_batch_helper(group_lst['input_ids'], vocab_dict['PAD'], max_length)
                 group_lst['parse_chart'] = pad_charts(group_lst['chart_lst'], padding_value=-100)
-            elif model_args.experiment == 'e2e-tgt-gen-tree':
-                group_lst['labels'] = group_lst['input_ids']
+            elif model_args.experiment == 'e2e-tgt-gen-tree' or  model_args.experiment == 'e2e-tgt-gen-spans':
+                if model_args.task == 'finetune':
+                    group_lst['labels'] = group_lst['input_ids']
+                elif model_args.task == 'from_scratch':
+                    max_length = 64
+                    group_lst['input_ids'] = _collate_batch_helper(group_lst['input_ids'], vocab_dict['PAD'],
+                                                                   max_length)
+                    group_lst['labels'] = group_lst['input_ids']
 
             return group_lst
 
@@ -1102,7 +1265,7 @@ def main():
 
     elif (model_args.experiment.startswith('roc') or\
             model_args.experiment.startswith('simple-wiki') or \
-            model_args.experiment.startswith('e2e-tgt')) and model_args.task != 'data_teacher':
+            model_args.experiment.startswith('e2e-tgt')) and model_args.task not in ['data_teacher', 'finetune']:
         def tokenize_function(examples):
             vocab_dict = raw_datasets.vocab
             with CaptureLogger(tok_logger) as cl:
@@ -1314,7 +1477,7 @@ def main():
 
     elif (model_args.experiment.startswith('roc') or\
             model_args.experiment.startswith('simple-wiki') or \
-            model_args.experiment.startswith('e2e-tgt')) and model_args.task == 'data_teacher':
+            model_args.experiment.startswith('e2e-tgt')) and model_args.task in ['data_teacher', 'finetune']:
         print(tokenizer.bos_token, tokenizer.eos_token, tokenizer.pad_token)
         def tokenize_function(examples):
             with CaptureLogger(tok_logger) as cl:
@@ -1462,7 +1625,7 @@ def main():
     trainer_tokenizer = None if ((model_args.experiment in ['pos', 'synth', 'roc', 'simple-wiki', 'e2e-tgt',
                                                             'e2e-tgt-pos','e2e-tgt-tree', 'e2e-back', 'e2e-back_t2']
                                  or model_args.experiment in ['synth_emb', 'pos_emb', 'roc_emb', 'simple-wiki_emb', 'e2e-tgt_emb'])
-                                 and model_args.task != 'data_teacher') \
+                                 and model_args.task not in ['data_teacher', 'finetune']) \
                         else tokenizer
     # Initialize our Trainer
     trainer = Trainer(
