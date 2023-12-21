@@ -33,6 +33,7 @@ import datasets
 import stanza
 import spacy_stanza
 from datasets import load_dataset, load_metric
+import benepar
 
 import transformers
 from transformers import (
@@ -120,7 +121,7 @@ class ModelArguments:
         metadata={"help": "simple wiki path"},
     )
     e2e_train: Optional[str] = field(
-        default='/u/scr/xlisali/e2e_data',
+        default='datasets/e2e_data/',
         metadata={"help": "simple wiki path"},
     )
 
