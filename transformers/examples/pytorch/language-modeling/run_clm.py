@@ -33,6 +33,12 @@ import datasets
 import stanza
 import spacy_stanza
 from datasets import load_dataset, load_metric
+import benepar
+# Download the benepar model
+benepar.download('benepar_en3')
+
+# Initialize the parser
+parser = benepar.Parser("benepar_en3")
 
 import transformers
 from transformers import (
@@ -112,7 +118,7 @@ class ModelArguments:
         metadata={"help": "blcok or pad"},
     )
     roc_train: Optional[str] = field(
-        default='/juice/scr/xlisali/diffusion_lm/ROCstory',
+        default='/kaggle/working/Diffusion-LM/datasets/ROCstory/',
         metadata={"help": "roc story path"},
     )
     wiki_train: Optional[str] = field(
@@ -120,7 +126,7 @@ class ModelArguments:
         metadata={"help": "simple wiki path"},
     )
     e2e_train: Optional[str] = field(
-        default='/u/scr/xlisali/e2e_data',
+        default='datasets/e2e_data/',
         metadata={"help": "simple wiki path"},
     )
 
@@ -516,6 +522,7 @@ def main():
         datefmt="%m/%d/%Y %H:%M:%S",
         handlers=[logging.StreamHandler(sys.stdout)],
     )
+    
 
     log_level = training_args.get_process_log_level()
     logger.setLevel(log_level)
@@ -603,7 +610,7 @@ def main():
 
         if model_args.experiment.startswith('roc'):
             tokenizer = load_tokenizer('roc', 'random',
-                                       '/u/scr/nlp/xlisali/predictability/diffusion_models_v7/diff_roc_pad_rand16_transformer_lr0.0001_0.0_2000_sqrt_Lsimple_h128_s2_d0.1_sd108_xstart')
+                                       '/kaggle/working/diffusion_models/diff_roc_block_rand16_transformer_lr0.0001_0.0_200_sqrt_Lsimple_h128_s2_d0.1_sd102_xstart_roc')
             vocab = {v: k for k, v in tokenizer.items()}
             print(len(tokenizer), len(vocab), 'loaded vocabs')
 
@@ -905,7 +912,7 @@ def main():
 
             filename = model_args.init_emb  # '/u/scr/nlp/xlisali/predictability/diffusion_models_v3/diff_e2e-tgt_block_rand16_transformer_lr0.0001_2000_cosine_Lsimple_h128_s2_sd101'
             path_save = '{}/random_emb.torch'.format(filename)
-            path_learned = '{}/ema_0.9999_200000.pt'.format(filename)
+            path_learned = '{}/ema_0.9999_000200.pt'.format(filename)
             if model_args.experiment == 'e2e-tgt-pos' and model_args.learned_emb == 'no':
                 model.transformer.embeddings.word_embeddings.load_state_dict(torch.load(path_save))
                 model.transformer.embeddings.word_embeddings.weight.requires_grad = False
@@ -1050,6 +1057,13 @@ def main():
                 doc = nlp(sent_full)
                 doc_token_pos = [(token.text, token.pos_,) for token in doc]
                 len_lst = [len(seq) for seq in examples['text']]
+
+                # Debug prints to check alignment
+                print("Original Sentences:", examples['text'])
+                print("Parsed Tokens and POS:", doc_token_pos)
+                print("Token Lengths:", len_lst)
+
+                #assert sum(len_lst) == len(doc_token_pos)
                 # print(sum(len_lst),  len(doc_token_pos))
                 assert sum(len_lst) == len(doc_token_pos)
                 pos_lst = []

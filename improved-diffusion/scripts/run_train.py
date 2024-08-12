@@ -97,7 +97,7 @@ if __name__ == '__main__':
 
     COMMANDLINE = f" OPENAI_LOGDIR={Model_FILE}  " \
                   f"TOKENIZERS_PARALLELISM=false " \
-                  f"python scripts/train.py   " \
+                  f"python /kaggle/working/Diffusion-LM/improved-diffusion/scripts/train.py   " \
                   f"--checkpoint_path {Model_FILE} " \
                   f"--model_arch {args.model_arch} " \
                   f"--modality {args.modality} " \

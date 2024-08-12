@@ -5,6 +5,9 @@ Train a diffusion model on images.
 import argparse
 import json, torch, os
 import numpy as np
+import sys
+sys.path.append('/kaggle/working/Diffusion-LM/improved-diffusion')
+
 from improved_diffusion import dist_util, logger
 from improved_diffusion.image_datasets import load_data
 from improved_diffusion.text_datasets import load_data_text

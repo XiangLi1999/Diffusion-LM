@@ -32,6 +32,7 @@ if __name__ == '__main__':
     parser.add_argument('--temperature', type=float, default=1., help='')
     parser.add_argument('--weight_decay', type=float, default=0.0, help='')
     parser.add_argument('--percent', type=float, default=1.0, help='')
+    parser.add_argument('--file_path', type=str, default='', help='Path to the input file')
 
     parser.add_argument('--submit', type=str, default='no', help='')
     parser.add_argument('--use_big', type=str, default='no', help='')

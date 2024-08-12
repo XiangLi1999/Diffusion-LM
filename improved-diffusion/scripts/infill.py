@@ -22,7 +22,8 @@ from improved_diffusion.script_util import (
     add_dict_to_argparser,
     args_to_dict,
 )
-sys.path.insert(0, 'diffusion_lm/transformers/examples/pytorch/language-modeling')
+#sys.path.insert(0, 'diffusion_lm/transformers/examples/pytorch/language-modeling')
+sys.path.insert(0, '/kaggle/working/Diffusion-LM/transformers/examples/pytorch/language-modeling')
 from custom_trainer import Classifier_GPT2, Classifier_Times, Classifier_POS, Classifier_Tree
 from infill_util import langevin_fn3, get_score, langevin_fn3_compose, langevin_fn1, langevin_fn4, langevin_fn_tree, langevin_fn_length
 from spacy.lang.en import English
@@ -238,8 +239,7 @@ def main():
                                                0.1)
 
             elif args.eval_task_ == 'control_pos':
-                model_control = Classifier_POS.from_pretrained('predictability/diff_models/e2e-tgt-pos_e=6_b=10_m=bert-'
-                                                               'base-uncased_wikitext-103-raw-v1_101_wp_full_multi16_v2').cuda()
+                model_control = Classifier_POS.from_pretrained('/kaggle/working/Diffusion-LM/classifier_models/').cuda()
 
 
                 pos_vocab = {'START': 0, 'END': 1, 'UNK': 2, 'PAD': 3}
@@ -314,9 +314,10 @@ def main():
                 #     'predictability/diff_models/e2e-tgt-tree_e=20_b=32_m=bert-base-uncased_'
                 #     'wikitext-103-raw-v1_101_wp_full_multi16_v2').cuda()
                 model_control = Classifier_Tree.from_pretrained(
-                    'predictability/diff_models/e2e-tgt-tree_e=20_b=32_m=bert-base-uncased_'
-                    'wikitext-103-raw-v1_101_wp_full_multi16_cat').cuda()
-
+                    '/kaggle/working/Diffusion-LM/classifier_models/').cuda()
+                #model_control = Classifier_Tree.from_pretrained(
+                #    'predictability/diff_models/e2e-tgt-tree_e=20_b=32_m=bert-base-uncased_'
+                #    'wikitext-103-raw-v1_101_wp_full_multi16_cat').cuda()
                 # print(model_control)
 
                 import benepar
@@ -714,7 +715,7 @@ def main():
 def create_argparser():
     defaults = dict(
         data_dir="", clip_denoised=False, use_ddim=False, eta=1.0, num_samples=50, batch_size=1, model_path="",
-        out_dir="diffusion_lm/improved_diffusion/out_gen",
+        out_dir="/kaggle/working/Diffusion-LM/improved-diffusion/improved_diffusion/",
         emb_scale_factor=1.0, split='train', debug_path='', eval_task_='infill',
         partial_seq="", partial_seq_file="", verbose='yes', tgt_len=15, t_merge=200, interp_coef=0.5, notes='',
         start_idx=0, end_idx=0,
@@ -753,7 +754,7 @@ def eval(args):
     if args.modality == 'e2e-tgt':
         model_name_path = "predictability/diff_models/e2e-tgt_e=15_b=20_m=gpt2_wikitext-103-raw-v1_101_None"
 
-        COMMAND = f"python scripts/ppl_under_ar.py " \
+        COMMAND = f"python /kaggle/working/Diffusion-LM/improved-diffusion/scripts/ppl_under_ar.py " \
               f"--model_path {args.model_path} " \
               f"--modality {args.modality}  --experiment random " \
               f"--model_name_or_path {model_name_path} " \
